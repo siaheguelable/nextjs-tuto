@@ -15,10 +15,13 @@ const FormSchema = z.object({
 });
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
-const UpdateInvoice = FormSchema.omit({ id: true, date: true }); // ✅ FIXED
+const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
+// --------------------------------------------------------
+// CREATE INVOICE
+// --------------------------------------------------------
 export async function createInvoice(formData: FormData) {
   const { customerId, amount, status } = CreateInvoice.parse({
     customerId: formData.get('customerId'),
@@ -35,17 +38,17 @@ export async function createInvoice(formData: FormData) {
       VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
     `;
   } catch (error) {
-    // We'll also log the error to the console for now
     console.error(error);
-    return {
-      message: 'Database Error: Failed to Create Invoice.',
-    };
+    throw new Error('Database Error: Failed to Create Invoice.');
   }
 
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
 }
 
+// --------------------------------------------------------
+// UPDATE INVOICE
+// --------------------------------------------------------
 export async function updateInvoice(id: string, formData: FormData) {
   const { customerId, amount, status } = UpdateInvoice.parse({
     customerId: formData.get('customerId'),
@@ -57,26 +60,36 @@ export async function updateInvoice(id: string, formData: FormData) {
 
   try {
     await sql`
-        UPDATE invoices
-        SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
-        WHERE id = ${id}
-      `;
+      UPDATE invoices
+      SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
+      WHERE id = ${id}
+    `;
   } catch (error) {
-    // We'll also log the error to the console for now
     console.error(error);
-    return { message: 'Database Error: Failed to Update Invoice.' };
+    throw new Error('Database Error: Failed to Update Invoice.');
   }
 
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
 }
 
+// --------------------------------------------------------
+// DELETE INVOICE
+// --------------------------------------------------------
 export async function deleteInvoice(id: string) {
-    throw new Error('Failed to Delete Invoice');
-  await sql`DELETE FROM invoices WHERE id = ${id}`;
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`;
+  } catch (error) {
+    console.error(error);
+    throw new Error('Failed to Delete Invoice.');
+  }
+
   revalidatePath('/dashboard/invoices');
 }
 
+// --------------------------------------------------------
+// LOGIN AUTHENTICATION
+// --------------------------------------------------------
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
